@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tls-secret-gateway
+  namespace: tls-secret-gateway
+  labels:
+    app: tls-secret-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: tls-secret-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

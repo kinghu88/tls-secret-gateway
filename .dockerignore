@@ -1,0 +1,8 @@
+bin/
+*.exe
+.git
+.gitignore
+deploy/
+*.md
+.vscode/
+.idea/

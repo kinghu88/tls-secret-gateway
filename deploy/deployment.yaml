@@ -1,0 +1,82 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tls-secret-gateway
+  namespace: tls-secret-gateway
+  labels:
+    app: tls-secret-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tls-secret-gateway
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: tls-secret-gateway
+    spec:
+      serviceAccountName: tls-secret-gateway
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: harbor.xxxx.com/library/tls-secret-gateway:20261022
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: LISTEN_ADDR
+              value: ":8080"
+            - name: RESYNC_PERIOD
+              value: "10m"
+            # Set to "false" to disable TokenReview auth (NOT recommended in prod).
+            - name: AUTH_ENABLED
+              value: "true"
+            # Comma-separated "namespace:name" of ServiceAccounts allowed to call.
+            # Leave empty to allow any authenticated SA.
+            - name: ALLOWED_SERVICE_ACCOUNTS
+              value: "tls-secret-gateway:tls-secret-gateway"
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      nodeSelector:
+        worker: 'true'
+      terminationGracePeriodSeconds: 30

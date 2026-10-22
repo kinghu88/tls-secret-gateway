@@ -1,0 +1,44 @@
+# RBAC for the tls-secret-gateway itself.
+# The proxy needs cluster-wide read access to Secrets (it filters TLS types
+# internally), plus the ability to call TokenReview when auth is enabled.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tls-secret-gateway
+  namespace: tls-secret-gateway
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tls-secret-gateway-secret-reader
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tls-secret-gateway-secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: tls-secret-gateway
+    namespace: tls-secret-gateway
+roleRef:
+  kind: ClusterRole
+  name: tls-secret-gateway-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# TokenReview is required for bearer-token authentication.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tls-secret-gateway-token-reviewer
+subjects:
+  - kind: ServiceAccount
+    name: tls-secret-gateway
+    namespace: tls-secret-gateway
+roleRef:
+  kind: ClusterRole
+  name: system:auth-delegator
+  apiGroup: rbac.authorization.k8s.io

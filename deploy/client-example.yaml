@@ -1,0 +1,42 @@
+# Example: ServiceAccount for a caller that wants to read TLS secrets via the proxy.
+# The caller does NOT need any Secret RBAC — it only needs to reach the proxy
+# over the network and present its own SA token (which the proxy validates via
+# TokenReview and checks against ALLOWED_SERVICE_ACCOUNTS).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-example
+  labels:
+    # Allow this namespace to reach the proxy per the NetworkPolicy.
+    network.tls-secret-gateway/access: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tls-secret-consumer
+  namespace: app-example
+---
+# Example Pod that calls the proxy.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tls-consumer-demo
+  namespace: app-example
+spec:
+  serviceAccountName: tls-secret-consumer
+  containers:
+    - name: demo
+      image: curlimages/curl:8.9.1
+      command: ["sh", "-c"]
+      args:
+        - |
+          TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+          echo "=== list all TLS secrets ==="
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            http://tls-secret-gateway.tls-secret-gateway.svc.cluster.local/v1/tls-secrets
+          echo
+          echo "=== get a specific one ==="
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            http://tls-secret-gateway.tls-secret-gateway.svc.cluster.local/v1/tls-secrets/some-ns/some-tls-secret
+          echo
+          sleep 3600
